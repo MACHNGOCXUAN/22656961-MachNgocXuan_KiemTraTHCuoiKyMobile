@@ -6,13 +6,15 @@ import { Expense } from "@/types";
 type Props = {
   item: Expense;
   onTogglePaid: (item: Expense) => void;
-  onEdit: (item: Expense) => void; // callback edit
+  onEdit: (item: Expense) => void;
+  onDelete: (item: Expense) => void;
 };
 
 export const ExpenseItem: React.FC<Props> = ({
   item,
   onTogglePaid,
   onEdit,
+  onDelete,
 }) => {
   return (
     <TouchableOpacity
@@ -30,26 +32,23 @@ export const ExpenseItem: React.FC<Props> = ({
           <Text className="font-bold text-lg mb-1">
             {item.amount.toLocaleString()}đ
           </Text>
-          <View className="flex-row items-center gap-1">
-            <AntDesign
-              name={item.paid ? "check-circle" : "close-circle"}
-              size={16}
-              color={item.paid ? "green" : "red"}
-            />
-
-            <Text
-              className={`text-sm font-medium ${
-                item.paid ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {item.paid ? "Đã thanh toán" : "Chưa thanh toán"}
-            </Text>
-          </View>
+          <Text
+            className={`text-sm font-medium ${
+              item.paid ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {item.paid ? "Đã thanh toán" : "Chưa thanh toán"}
+          </Text>
         </View>
 
         {/* Nút Edit */}
         <TouchableOpacity onPress={() => onEdit(item)} className="ml-3">
           <AntDesign name="edit" size={20} color="#1E40AF" />
+        </TouchableOpacity>
+
+        {/* Nút Delete */}
+        <TouchableOpacity onPress={() => onDelete(item)} className="ml-3">
+          <AntDesign name="delete" size={20} color="red" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>

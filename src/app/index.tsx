@@ -11,7 +11,12 @@ import {
 import { useSQLiteContext } from "expo-sqlite";
 import { AntDesign } from "@expo/vector-icons"; // icon +
 import { Expense } from "@/types";
-import { createExpense, getAllExpenses, updateExpense } from "@/database/db";
+import {
+  createExpense,
+  deleteExpense,
+  getAllExpenses,
+  updateExpense,
+} from "@/database/db";
 import { ExpenseItem } from "@/components/ExpenseItem";
 
 export default function ExpensesListScreen() {
@@ -47,7 +52,6 @@ export default function ExpensesListScreen() {
   };
 
   const handleAddExpense = async () => {
-    // Validate
     if (!title.trim()) {
       Alert.alert("Lỗi", "Title không được để trống");
       return;
@@ -66,10 +70,8 @@ export default function ExpensesListScreen() {
         category: category.trim() || undefined,
       });
 
-      // Cập nhật danh sách
       await fetchExpenses();
 
-      // Reset form
       setTitle("");
       setAmount("");
       setCategory("");
@@ -118,10 +120,31 @@ export default function ExpensesListScreen() {
     }
   };
 
+  const handleDeleteItem = (item: Expense) => {
+    Alert.alert(
+      "Xác nhận",
+      `Bạn có chắc muốn xóa khoản chi tiêu "${item.title}"?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteExpense(db, item.id!);
+              await fetchExpenses();
+            } catch (error) {
+              console.error(error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleTogglePaid = async (item: Expense) => {
     try {
       await updateExpense(db, { ...item, paid: item.paid ? 0 : 1 });
-      // Cập nhật lại danh sách sau khi toggle
       await fetchExpenses();
     } catch (error) {
       console.error(error);
@@ -138,7 +161,6 @@ export default function ExpensesListScreen() {
 
   return (
     <View className="flex-1">
-      {/* FlatList hiển thị danh sách */}
       {expenses.length === 0 ? (
         <View className="flex-1 justify-center items-center">
           <Text className="text-gray-500 text-lg">
@@ -154,13 +176,13 @@ export default function ExpensesListScreen() {
               item={item}
               onTogglePaid={handleTogglePaid}
               onEdit={handleEditItem}
+              onDelete={handleDeleteItem}
             />
           )}
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
 
-      {/* Nút + */}
       <TouchableOpacity
         onPress={() => setModalVisible(true)}
         className="absolute bottom-10 right-5 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow"
