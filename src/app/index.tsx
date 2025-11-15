@@ -25,6 +25,12 @@ export default function ExpensesListScreen() {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
 
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState<Expense | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+
   useEffect(() => {
     fetchExpenses();
   }, [db]);
@@ -74,6 +80,44 @@ export default function ExpensesListScreen() {
     }
   };
 
+  const handleEditItem = (item: Expense) => {
+    setEditingItem(item);
+    setEditTitle(item.title);
+    setEditAmount(item.amount.toString());
+    setEditCategory(item.category ?? "");
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) {
+      Alert.alert("Lỗi", "Title không được để trống");
+      return;
+    }
+
+    const parsedAmount = Number(editAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert("Lỗi", "Amount phải là số lớn hơn 0");
+      return;
+    }
+
+    if (!editingItem) return;
+
+    try {
+      await updateExpense(db, {
+        ...editingItem,
+        title: editTitle.trim(),
+        amount: parsedAmount,
+        category: editCategory.trim() || undefined,
+      });
+      await fetchExpenses();
+      setEditModalVisible(false);
+      setEditingItem(null);
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Lỗi", "Không thể cập nhật khoản chi tiêu");
+    }
+  };
+
   const handleTogglePaid = async (item: Expense) => {
     try {
       await updateExpense(db, { ...item, paid: item.paid ? 0 : 1 });
@@ -106,7 +150,11 @@ export default function ExpensesListScreen() {
           data={expenses}
           keyExtractor={(item) => item.id!.toString()}
           renderItem={({ item }) => (
-            <ExpenseItem item={item} onTogglePaid={handleTogglePaid} />
+            <ExpenseItem
+              item={item}
+              onTogglePaid={handleTogglePaid}
+              onEdit={handleEditItem}
+            />
           )}
           contentContainerStyle={{ paddingBottom: 20 }}
         />
@@ -120,41 +168,42 @@ export default function ExpensesListScreen() {
         <AntDesign name="plus" size={24} color="white" />
       </TouchableOpacity>
 
-      {/* Modal thêm chi tiêu */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
+      <Modal visible={editModalVisible} animationType="slide" transparent>
         <View className="flex-1 justify-center bg-black/40 px-4">
           <View className="bg-white p-6 rounded-lg">
-            <Text className="text-lg font-bold mb-4">Thêm khoản chi tiêu</Text>
+            <Text className="text-lg font-bold mb-4">
+              Chỉnh sửa khoản chi tiêu
+            </Text>
 
             <TextInput
               placeholder="Title"
-              value={title}
-              onChangeText={setTitle}
+              value={editTitle}
+              onChangeText={setEditTitle}
               className="border border-gray-300 rounded px-3 py-2 mb-3"
             />
             <TextInput
               placeholder="Amount"
-              value={amount}
-              onChangeText={setAmount}
+              value={editAmount}
+              onChangeText={setEditAmount}
               keyboardType="numeric"
               className="border border-gray-300 rounded px-3 py-2 mb-3"
             />
             <TextInput
               placeholder="Category"
-              value={category}
-              onChangeText={setCategory}
+              value={editCategory}
+              onChangeText={setEditCategory}
               className="border border-gray-300 rounded px-3 py-2 mb-3"
             />
 
             <View className="flex-row justify-end gap-3 mt-4">
               <TouchableOpacity
-                onPress={() => setModalVisible(false)}
+                onPress={() => setEditModalVisible(false)}
                 className="px-4 py-2 bg-gray-300 rounded"
               >
                 <Text>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={handleAddExpense}
+                onPress={handleSaveEdit}
                 className="px-4 py-2 bg-blue-600 rounded"
               >
                 <Text className="text-white">Save</Text>
