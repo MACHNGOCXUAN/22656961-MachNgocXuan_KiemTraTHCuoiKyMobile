@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,188 +9,77 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { useSQLiteContext } from "expo-sqlite";
 import { AntDesign } from "@expo/vector-icons";
-import { getAllExpenses, createExpense, updateExpense, deleteExpense } from "../database/db";
+import { useSQLiteContext } from "expo-sqlite";
+import { ExpenseItem } from "../components/ExpenseItem";
 import { Expense } from "@/types";
-import { ExpenseItem } from "@/components/ExpenseItem";
+import { useExpenses } from "@/hooks/useExpenses";
 
 export default function ExpensesListScreen() {
   const db = useSQLiteContext();
+  const {
+    expenses,
+    loading,
+    error,
+    search,
+    setSearch,
+    categoryFilter,
+    setCategoryFilter,
+    totalAmount,
+    fetchExpenses,
+    addExpense,
+    editExpense,
+    removeExpense,
+    togglePaid,
+    importFromAPI,
+  } = useExpenses(db);
 
-  /** State danh sách */
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  /** State modal thêm */
+  /** Modal thêm/sửa chi tiêu */
   const [modalVisible, setModalVisible] = useState(false);
+  const [editItem, setEditItem] = useState<Expense | null>(null);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
 
-  /** State modal edit */
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editingItem, setEditingItem] = useState<Expense | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editAmount, setEditAmount] = useState("");
-  const [editCategory, setEditCategory] = useState("");
-
-  /** State search/filter */
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-
-  /** State import API */
-  const [loadingAPI, setLoadingAPI] = useState(false);
-  const [errorAPI, setErrorAPI] = useState<string | null>(null);
-
-  /** Fetch danh sách chi tiêu */
-  const fetchExpenses = async () => {
-    try {
-      const data = await getAllExpenses(db);
-      setExpenses(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const openAddModal = () => {
+    setEditItem(null);
+    setTitle(""); setAmount(""); setCategory(""); setModalVisible(true);
   };
 
-  useEffect(() => {
-    fetchExpenses();
-  }, []);
+  const openEditModal = (item: Expense) => {
+    setEditItem(item);
+    setTitle(item.title);
+    setAmount(item.amount.toString());
+    setCategory(item.category ?? "");
+    setModalVisible(true);
+  };
 
-  /** Thêm chi tiêu */
-  const handleAddExpense = async () => {
-    if (!title.trim()) {
-      Alert.alert("Lỗi", "Title không được để trống");
-      return;
-    }
+  const handleSave = async () => {
     const parsedAmount = Number(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert("Lỗi", "Amount phải là số > 0");
-      return;
-    }
+    if (!title.trim()) { Alert.alert("Lỗi", "Title không được để trống"); return; }
+    if (isNaN(parsedAmount) || parsedAmount <= 0) { Alert.alert("Lỗi", "Amount phải > 0"); return; }
 
     try {
-      await createExpense(db, {
-        title: title.trim(),
-        amount: parsedAmount,
-        category: category.trim() || undefined,
-      });
-      await fetchExpenses();
-      setTitle(""); setAmount(""); setCategory(""); setModalVisible(false);
+      if (editItem) {
+        await editExpense({ ...editItem, title: title.trim(), amount: parsedAmount, category: category.trim() });
+      } else {
+        await addExpense({ title: title.trim(), amount: parsedAmount, category: category.trim() });
+      }
+      setModalVisible(false);
     } catch (err) {
-      console.error(err);
-      Alert.alert("Lỗi", "Không thể thêm chi tiêu");
+      Alert.alert("Lỗi", "Không thể lưu chi tiêu");
     }
   };
 
-  /** Chỉnh sửa chi tiêu */
-  const handleEditItem = (item: Expense) => {
-    setEditingItem(item);
-    setEditTitle(item.title);
-    setEditAmount(item.amount.toString());
-    setEditCategory(item.category ?? "");
-    setEditModalVisible(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingItem) return;
-    if (!editTitle.trim()) {
-      Alert.alert("Lỗi", "Title không được để trống");
-      return;
-    }
-    const parsedAmount = Number(editAmount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert("Lỗi", "Amount phải là số > 0");
-      return;
-    }
-
-    try {
-      await updateExpense(db, {
-        ...editingItem,
-        title: editTitle.trim(),
-        amount: parsedAmount,
-        category: editCategory.trim() || undefined,
-      });
-      await fetchExpenses();
-      setEditModalVisible(false);
-      setEditingItem(null);
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Lỗi", "Không thể cập nhật chi tiêu");
-    }
-  };
-
-  /** Toggle paid */
-  const handleTogglePaid = async (item: Expense) => {
-    try {
-      await updateExpense(db, { ...item, paid: item.paid ? 0 : 1 });
-      await fetchExpenses();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  /** Xóa chi tiêu */
-  const handleDeleteItem = (item: Expense) => {
+  const handleDelete = (item: Expense) => {
     Alert.alert(
       "Xác nhận",
       `Bạn có chắc muốn xóa "${item.title}"?`,
       [
         { text: "Hủy", style: "cancel" },
-        {
-          text: "Xóa",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteExpense(db, item.id!);
-              await fetchExpenses();
-            } catch (err) { console.error(err); }
-          },
-        },
+        { text: "Xóa", style: "destructive", onPress: () => removeExpense(item.id!) }
       ]
     );
-  };
-
-  /** Filter danh sách */
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter((item) => {
-      const matchTitle = item.title.toLowerCase().includes(search.toLowerCase());
-      const matchCategory = categoryFilter
-        ? item.category?.toLowerCase() === categoryFilter.toLowerCase()
-        : true;
-      return matchTitle && matchCategory;
-    });
-  }, [expenses, search, categoryFilter]);
-
-  /** Import từ API */
-  const importFromAPI = async () => {
-    setLoadingAPI(true);
-    setErrorAPI(null);
-    try {
-      const res = await fetch("https://67c83c700acf98d0708588de.mockapi.io/api/v1/todos");
-      if (!res.ok) throw new Error("Failed to fetch API");
-      const data: any[] = await res.json();
-
-      const existing = await getAllExpenses(db);
-      for (const item of data) {
-        const title = item.title;
-        const amount = Number(item.price ?? item.amount ?? 0);
-        const category = item.category;
-
-        const isExist = existing.some((e) => e.title === title && e.amount === amount);
-        if (isExist) continue;
-
-        await createExpense(db, { title, amount, category });
-      }
-      await fetchExpenses();
-    } catch (err: any) {
-      console.error(err);
-      setErrorAPI(err.message || "Lỗi khi import API");
-    } finally {
-      setLoadingAPI(false);
-    }
   };
 
   if (loading) return (
@@ -198,94 +87,87 @@ export default function ExpensesListScreen() {
   );
 
   return (
-    <View className="flex-1">
-      {/* Search + filter */}
+    <View className="flex-1 bg-gray-50">
+      {/* Search + Filter */}
       <View className="px-4 py-2 bg-gray-100">
         <TextInput
           placeholder="Tìm kiếm theo title..."
           value={search}
           onChangeText={setSearch}
-          className="border border-gray-300 rounded px-3 py-2 bg-white mb-2"
+          className="border border-gray-300 rounded px-3 py-2 mb-2 bg-white"
         />
-        {/* Category filter */}
         <TextInput
-          placeholder="Filter category (tùy chọn)"
+          placeholder="Filter category..."
           value={categoryFilter}
           onChangeText={setCategoryFilter}
           className="border border-gray-300 rounded px-3 py-2 bg-white"
         />
       </View>
 
-      {/* Nút import API */}
-      <TouchableOpacity
-        onPress={importFromAPI}
-        className="px-4 py-2 bg-green-600 rounded m-4 items-center"
-      >
-        <Text className="text-white font-bold">Import từ API</Text>
-      </TouchableOpacity>
-      {loadingAPI && <Text className="px-4 text-gray-500">Đang import...</Text>}
-      {errorAPI && <Text className="px-4 text-red-500">{errorAPI}</Text>}
+      {/* Buttons */}
+      <View className="flex-row px-4 py-2 justify-between items-center">
+        <TouchableOpacity
+          onPress={openAddModal}
+          disabled={loading}
+          className={`px-4 py-2 rounded ${loading ? 'bg-gray-400' : 'bg-blue-600'}`}
+        >
+          <Text className="text-white font-bold">+ Thêm</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => importFromAPI("https://mockapi.io/expenses")}
+          disabled={loading}
+          className={`px-4 py-2 rounded ${loading ? 'bg-gray-400' : 'bg-green-600'}`}
+        >
+          <Text className="text-white font-bold">Import API</Text>
+        </TouchableOpacity>
+      </View>
+
+      {error && <Text className="text-red-500 px-4">{error}</Text>}
 
       {/* FlatList */}
-      {filteredExpenses.length === 0 ? (
+      {expenses.length === 0 ? (
         <View className="flex-1 justify-center items-center">
-          <Text className="text-gray-500 text-lg">Chưa có khoản chi tiêu nào.</Text>
+          <AntDesign name="frown" size={64} color="gray" />
+          <Text className="text-gray-500 text-lg mt-4">Chưa có khoản chi tiêu nào.</Text>
         </View>
       ) : (
         <FlatList
-          data={filteredExpenses}
+          data={expenses}
           keyExtractor={(item) => item.id!.toString()}
           renderItem={({ item }) => (
             <ExpenseItem
               item={item}
-              onTogglePaid={handleTogglePaid}
-              onEdit={handleEditItem}
-              onDelete={handleDeleteItem}
+              onTogglePaid={togglePaid}
+              onEdit={openEditModal}
+              onDelete={handleDelete}
             />
           )}
+          refreshing={loading}
+          onRefresh={fetchExpenses}
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
 
-      {/* Modal thêm chi tiêu */}
+      {/* Tổng tiền */}
+      <View className="px-4 py-2 border-t border-gray-300 bg-gray-100">
+        <Text className="text-lg font-bold">Tổng chi tiêu: {totalAmount.toLocaleString()}đ</Text>
+      </View>
+
+      {/* Modal thêm/sửa */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View className="flex-1 justify-center bg-black/40 px-4">
           <View className="bg-white p-6 rounded-lg">
-            <Text className="text-lg font-bold mb-4">Thêm khoản chi tiêu</Text>
+            <Text className="text-lg font-bold mb-4">{editItem ? "Chỉnh sửa" : "Thêm"} khoản chi tiêu</Text>
             <TextInput placeholder="Title" value={title} onChangeText={setTitle} className="border border-gray-300 rounded px-3 py-2 mb-3"/>
             <TextInput placeholder="Amount" value={amount} onChangeText={setAmount} keyboardType="numeric" className="border border-gray-300 rounded px-3 py-2 mb-3"/>
             <TextInput placeholder="Category" value={category} onChangeText={setCategory} className="border border-gray-300 rounded px-3 py-2 mb-3"/>
             <View className="flex-row justify-end gap-3 mt-4">
               <TouchableOpacity onPress={() => setModalVisible(false)} className="px-4 py-2 bg-gray-300 rounded"><Text>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity onPress={handleAddExpense} className="px-4 py-2 bg-blue-600 rounded"><Text className="text-white">Save</Text></TouchableOpacity>
+              <TouchableOpacity onPress={handleSave} className="px-4 py-2 bg-blue-600 rounded"><Text className="text-white">Save</Text></TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      {/* Modal edit chi tiêu */}
-      <Modal visible={editModalVisible} animationType="slide" transparent>
-        <View className="flex-1 justify-center bg-black/40 px-4">
-          <View className="bg-white p-6 rounded-lg">
-            <Text className="text-lg font-bold mb-4">Chỉnh sửa khoản chi tiêu</Text>
-            <TextInput placeholder="Title" value={editTitle} onChangeText={setEditTitle} className="border border-gray-300 rounded px-3 py-2 mb-3"/>
-            <TextInput placeholder="Amount" value={editAmount} onChangeText={setEditAmount} keyboardType="numeric" className="border border-gray-300 rounded px-3 py-2 mb-3"/>
-            <TextInput placeholder="Category" value={editCategory} onChangeText={setEditCategory} className="border border-gray-300 rounded px-3 py-2 mb-3"/>
-            <View className="flex-row justify-end gap-3 mt-4">
-              <TouchableOpacity onPress={() => setEditModalVisible(false)} className="px-4 py-2 bg-gray-300 rounded"><Text>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity onPress={handleSaveEdit} className="px-4 py-2 bg-blue-600 rounded"><Text className="text-white">Save</Text></TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Nút + thêm chi tiêu */}
-      <TouchableOpacity
-        onPress={() => setModalVisible(true)}
-        className="absolute bottom-10 right-5 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow"
-      >
-        <AntDesign name="plus" size={24} color="white" />
-      </TouchableOpacity>
     </View>
   );
 }
