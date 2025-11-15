@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -36,9 +36,22 @@ export default function ExpensesListScreen() {
   const [editAmount, setEditAmount] = useState("");
   const [editCategory, setEditCategory] = useState("");
 
+  const [search, setSearch] = useState(""); // input search
+  const [categoryFilter, setCategoryFilter] = useState(""); // filter theo category
+
   useEffect(() => {
     fetchExpenses();
   }, [db]);
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((item) => {
+      const matchTitle = item.title.toLowerCase().includes(search.toLowerCase());
+      const matchCategory = categoryFilter
+        ? item.category?.toLowerCase() === categoryFilter.toLowerCase()
+        : true;
+      return matchTitle && matchCategory;
+    });
+  }, [expenses, search, categoryFilter]);
 
   const fetchExpenses = async () => {
     try {
@@ -161,15 +174,22 @@ export default function ExpensesListScreen() {
 
   return (
     <View className="flex-1">
-      {expenses.length === 0 ? (
+      <View className="px-4 py-2 bg-gray-100">
+        <TextInput
+          placeholder="Tìm kiếm theo title..."
+          value={search}
+          onChangeText={setSearch}
+          className="border border-gray-300 rounded px-3 py-2 bg-white"
+        />
+      </View>
+
+      {filteredExpenses.length === 0 ? (
         <View className="flex-1 justify-center items-center">
-          <Text className="text-gray-500 text-lg">
-            Chưa có khoản chi tiêu nào.
-          </Text>
+          <Text className="text-gray-500 text-lg">Chưa có khoản chi tiêu nào.</Text>
         </View>
       ) : (
         <FlatList
-          data={expenses}
+          data={filteredExpenses}
           keyExtractor={(item) => item.id!.toString()}
           renderItem={({ item }) => (
             <ExpenseItem
@@ -182,58 +202,6 @@ export default function ExpensesListScreen() {
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
-
-      <TouchableOpacity
-        onPress={() => setModalVisible(true)}
-        className="absolute bottom-10 right-5 bg-blue-600 w-14 h-14 rounded-full items-center justify-center shadow"
-      >
-        <AntDesign name="plus" size={24} color="white" />
-      </TouchableOpacity>
-
-      <Modal visible={editModalVisible} animationType="slide" transparent>
-        <View className="flex-1 justify-center bg-black/40 px-4">
-          <View className="bg-white p-6 rounded-lg">
-            <Text className="text-lg font-bold mb-4">
-              Chỉnh sửa khoản chi tiêu
-            </Text>
-
-            <TextInput
-              placeholder="Title"
-              value={editTitle}
-              onChangeText={setEditTitle}
-              className="border border-gray-300 rounded px-3 py-2 mb-3"
-            />
-            <TextInput
-              placeholder="Amount"
-              value={editAmount}
-              onChangeText={setEditAmount}
-              keyboardType="numeric"
-              className="border border-gray-300 rounded px-3 py-2 mb-3"
-            />
-            <TextInput
-              placeholder="Category"
-              value={editCategory}
-              onChangeText={setEditCategory}
-              className="border border-gray-300 rounded px-3 py-2 mb-3"
-            />
-
-            <View className="flex-row justify-end gap-3 mt-4">
-              <TouchableOpacity
-                onPress={() => setEditModalVisible(false)}
-                className="px-4 py-2 bg-gray-300 rounded"
-              >
-                <Text>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSaveEdit}
-                className="px-4 py-2 bg-blue-600 rounded"
-              >
-                <Text className="text-white">Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
