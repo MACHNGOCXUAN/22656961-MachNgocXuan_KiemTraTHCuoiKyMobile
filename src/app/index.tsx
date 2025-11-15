@@ -6,9 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function Page() {
   return (
     <View className="flex flex-1">
-      <Header />
-      <Content />
-      <Footer />
+      <Text className="flex flex-1 justify-center items-center text-red-800">Xian</Text>
     </View>
   );
 }
