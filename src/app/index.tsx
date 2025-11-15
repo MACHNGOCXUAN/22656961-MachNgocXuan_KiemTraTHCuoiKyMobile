@@ -114,7 +114,7 @@ export default function ExpensesListScreen() {
           <Text className="text-white font-bold">+ Thêm</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => importFromAPI("https://mockapi.io/expenses")}
+          onPress={() => importFromAPI("https://67c83c700acf98d0708588de.mockapi.io/api/v1/todos")}
           disabled={loading}
           className={`px-4 py-2 rounded ${loading ? 'bg-gray-400' : 'bg-green-600'}`}
         >

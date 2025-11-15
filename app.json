@@ -15,5 +15,18 @@
     "expo-sqlite"
   ],
   "name": "22656961-MachNgocXuan",
-  "slug": "22656961-MachNgocXuan"
+  "slug": "22656961-MachNgocXuan",
+  "extra": {
+    "router": {
+      "origin": "https://n"
+    },
+    "eas": {
+      "projectId": "785ce93b-056e-485e-a5a4-15152f3b6c18"
+    }
+  },
+  "expo": {
+    "android": {
+      "package": "com.yourname.expensetracker"
+    }
+  }
 }
