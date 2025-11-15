@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, Modal, TouchableOpacity, TextInput, Alert } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  Modal,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+} from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 import { AntDesign } from "@expo/vector-icons"; // icon +
 import { Expense } from "@/types";
-import { createExpense, getAllExpenses } from "@/database/db";
+import { createExpense, getAllExpenses, updateExpense } from "@/database/db";
 import { ExpenseItem } from "@/components/ExpenseItem";
 
 export default function ExpensesListScreen() {
@@ -66,6 +74,16 @@ export default function ExpensesListScreen() {
     }
   };
 
+  const handleTogglePaid = async (item: Expense) => {
+    try {
+      await updateExpense(db, { ...item, paid: item.paid ? 0 : 1 });
+      // Cập nhật lại danh sách sau khi toggle
+      await fetchExpenses();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center">
@@ -79,13 +97,17 @@ export default function ExpensesListScreen() {
       {/* FlatList hiển thị danh sách */}
       {expenses.length === 0 ? (
         <View className="flex-1 justify-center items-center">
-          <Text className="text-gray-500 text-lg">Chưa có khoản chi tiêu nào.</Text>
+          <Text className="text-gray-500 text-lg">
+            Chưa có khoản chi tiêu nào.
+          </Text>
         </View>
       ) : (
         <FlatList
           data={expenses}
           keyExtractor={(item) => item.id!.toString()}
-          renderItem={({ item }) => <ExpenseItem item={item} />}
+          renderItem={({ item }) => (
+            <ExpenseItem item={item} onTogglePaid={handleTogglePaid} />
+          )}
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}
